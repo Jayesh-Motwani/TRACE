@@ -11,6 +11,12 @@ class RowIn(BaseModel):
     row: Dict[str, Any]
 
 
+@app.post("/analyze-batch")
+def analyze_batch(req: RowsIn):
+    out = compute.predict(req.rows)
+    return out
+
+
 @app.post("/predict")
 def predict_one(req: RowIn):
     out = compute.predict([req.row])
@@ -33,3 +39,33 @@ def predict_attack_type(req: RowIn):
     return {"attack_type": r["attack_type"], "attack_confidence": r["attack_confidence"]}
 
 
+@app.post("/anomaly-flag")
+def get_anomaly_flag(req: RowIn):
+    out = compute.predict([req.row])
+    r = out["results"][0]
+    return {
+        "is_anomaly": r["is_anomaly"],
+        "score": r["score"],
+        "threshold": r["threshold"],
+    }
+
+
+@app.post("/analyze")
+def analyze(req: RowIn):
+    out = compute.predict([req.row])
+    r = out["results"][0]
+
+    llm_payload = {
+        "is_anomaly": r["is_anomaly"],
+        "score": r["score"],
+        "threshold": r["threshold"],
+        "attack_type": r["attack_type"],
+        "attack_confidence": r["attack_confidence"],
+        "top_contributors": r["top_contributors"],
+        "input_issues": out.get("input_issues", {}),
+    }
+
+    return {
+        "model_output": r,
+        "llm_payload": llm_payload
+    }
