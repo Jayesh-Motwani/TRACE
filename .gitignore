@@ -1,7 +1,7 @@
-# big memmap artifacts
-X_scaled.dat
-*.dat
-# big memmap artifacts
+# big artifacts
+artifacts/X_scaled.dat
+artifacts/train_benign_idx.npy
 artifacts/*.dat
 artifacts/**/*.dat
-
+artifacts/*.npy
+artifacts/**/*.npy
