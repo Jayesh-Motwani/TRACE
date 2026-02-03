@@ -2,8 +2,6 @@ from fastapi import FastAPI
 import compute
 from pydantic import BaseModel
 from typing import Any, Dict
-
-data = [{...}]
 app = FastAPI()
 
 
@@ -12,7 +10,7 @@ class RowIn(BaseModel):
 
 
 @app.post("/analyze-batch")
-def analyze_batch(req: RowsIn):
+def analyze_batch(req: RowIn):
     out = compute.predict(req.rows)
     return out
 
