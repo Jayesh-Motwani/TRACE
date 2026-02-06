@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import compute
+import json
+from llm import summarize_alert
 from pydantic import BaseModel
 from typing import Any, Dict, List
 
@@ -83,7 +85,7 @@ def analyze_batch(req: RowIn):
                   "- `input_issues`: validation/quality issues detected in input (if any)\n\n"
                   "Usage:\n"
                   "- Use this for the primary 'Predict' action button. Basically if we want everything.\n"
-                  ),
+          ),
           )
 def predict_one(req: RowIn):
     out = compute.predict([req.row])
@@ -108,7 +110,7 @@ def predict_one(req: RowIn):
                   "- `attack_confidence`\n\n"
                   "Usage:\n"
                   "- Use this only when attack type needs to be displayed i.e. for anomaly detected thing.\n"
-                  ),
+          ),
           )
 def predict_attack_type(req: RowIn):
     out = compute.predict([req.row])
@@ -126,7 +128,7 @@ def predict_attack_type(req: RowIn):
                   "- `threshold`\n\n"
                   "Frontend usage:\n"
                   "- Use for checking if anomaly is there\n"
-                  ),
+          ),
           )
 def get_anomaly_flag(req: RowIn):
     out = compute.predict([req.row])
@@ -173,3 +175,11 @@ def analyze(req: RowIn):
         "model_output": r,
         "llm_payload": llm_payload
     }
+
+
+@app.post("/summarize")
+def summarize(req: dict):
+    if "llm_payload" not in req or "model_output" not in req:
+        raise HTTPException(status_code=400, detail="Need llm_payload and model_output")
+
+    return summarize_alert(req["llm_payload"], req["model_output"])
