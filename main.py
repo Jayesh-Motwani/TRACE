@@ -1,21 +1,90 @@
 from fastapi import FastAPI
 import compute
 from pydantic import BaseModel
-from typing import Any, Dict
+from typing import Any, Dict, List
+
 app = FastAPI()
 
 
 class RowIn(BaseModel):
     row: Dict[str, Any]
 
+    """
+       Request schema for endpoints that analyze a *single* event/record.
 
-@app.post("/analyze-batch")
+       Frontend usage:
+       - Send a JSON body with a `row` object containing the feature fields expected by the model.
+       - Example:
+         {
+           "row": {
+             "src_ip": "1.2.3.4",
+             "dst_port": 443,
+             "bytes_out": 1234,
+             ...
+           }
+         }
+       """
+
+
+class BatchIn(BaseModel):
+    """
+    Request schema for endpoints that analyze a *batch* of events/records.
+
+    Frontend usage:
+    - Send a JSON body with a `rows` array; each element is a feature dict.
+    - Example:
+      {
+        "rows": [
+          {"src_ip": "1.2.3.4", "dst_port": 443, ...},
+          {"src_ip": "5.6.7.8", "dst_port": 22, ...}
+        ]
+      }
+    """
+    rows: List[Dict[str, Any]]
+
+
+@app.post("/analyze-batch",
+          summary="Analyze a batch of rows (full model output)",
+          description=(
+                  "Runs the model on multiple input rows in one request.\n\n"
+                  "- Calls `compute.predict(rows)`.\n"
+                  "- Returns the raw output from the model for the entire batch.\n\n"
+                  "Usage:\n"
+                  "- Use this when you have a table/list view and want to score many rows at once.\n"
+                  "- Good for bulk actions, precomputing UI badges, etc.\n\n"
+                  "Response shape:\n"
+                  "- Returns "
+                  """
+                {"is_anomaly": bool(flags[i]),
+                "score": float(scores[i]),
+                "threshold": float(vae_out["threshold"]),
+                "attack_type": str(attack_label[i]),
+                "attack_confidence": float(attack_conf[i]),
+                "top_contributors": contrib,
+                }
+                optionally `input_issues`)."""),
+          )
 def analyze_batch(req: RowIn):
     out = compute.predict(req.rows)
     return out
 
 
-@app.post("/predict")
+@app.post("/predict",
+          summary="Predict anomaly + attack info for a single row",
+          description=(
+                  "Runs the model for a single row and returns a *flattened* subset of fields.\n\n"
+                  "What it fetches/returns:\n"
+                  "- `is_anomaly`: boolean anomaly flag\n"
+                  "- `score`: anomaly score\n"
+                  "- `threshold`: threshold used to decide anomaly\n"
+                  "- `attack_type`: predicted attack label/category\n"
+                  "- `attack_confidence`: confidence score for `attack_type`\n"
+                  "- `top_contributors`: main features driving the decision (for explanations UI)\n"
+                  "- `input_issues`: validation/quality issues detected in input (if any)\n\n"
+                  "Usage:\n"
+                  "- Use this for the primary 'Predict' action button. Basically if we want everything.\n"
+                  ),
+          )
 def predict_one(req: RowIn):
     out = compute.predict([req.row])
     result0 = out["results"][0]
@@ -30,14 +99,35 @@ def predict_one(req: RowIn):
     }
 
 
-@app.post("/attack-type")
+@app.post("/attack-type",
+          summary="Predict attack type for a single row",
+          description=(
+                  "Runs the model for a single row and returns only attack classification fields.\n\n"
+                  "What it fetches/returns:\n"
+                  "- `attack_type`\n"
+                  "- `attack_confidence`\n\n"
+                  "Usage:\n"
+                  "- Use this only when attack type needs to be displayed i.e. for anomaly detected thing.\n"
+                  ),
+          )
 def predict_attack_type(req: RowIn):
     out = compute.predict([req.row])
     r = out["results"][0]
     return {"attack_type": r["attack_type"], "attack_confidence": r["attack_confidence"]}
 
 
-@app.post("/anomaly-flag")
+@app.post("/anomaly-flag",
+          summary="Predict only anomaly flag + score for a single row",
+          description=(
+                  "Runs the model for a single row and returns only anomaly-related fields.\n\n"
+                  "What it fetches/returns:\n"
+                  "- `is_anomaly`\n"
+                  "- `score`\n"
+                  "- `threshold`\n\n"
+                  "Frontend usage:\n"
+                  "- Use for checking if anomaly is there\n"
+                  ),
+          )
 def get_anomaly_flag(req: RowIn):
     out = compute.predict([req.row])
     r = out["results"][0]
@@ -48,7 +138,23 @@ def get_anomaly_flag(req: RowIn):
     }
 
 
-@app.post("/analyze")
+@app.post("/analyze",
+          summary="Analyze single row (full model_output + curated llm_payload)",
+          description=(
+                  "Runs the model for a single row and returns:\n\n"
+                  "1) `model_output`:\n"
+                  "- The full raw per-row result object returned by the model.\n\n"
+                  "2) `llm_payload`:\n"
+                  "- A curated subset designed to feed an LLM/explainer component:\n"
+                  "  - anomaly fields: `is_anomaly`, `score`, `threshold`\n"
+                  "  - attack fields: `attack_type`, `attack_confidence`\n"
+                  "  - explanation fields: `top_contributors`\n"
+                  "  - `input_issues` if any\n\n"
+                  "Frontend usage:\n"
+                  "- This is what we will send to the LLM and LLM will return a response with fields like\n"
+                  "{keywords: ..., text: ...} and we will use the text for generated output on right of the screen"
+          ),
+          )
 def analyze(req: RowIn):
     out = compute.predict([req.row])
     r = out["results"][0]
