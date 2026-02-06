@@ -5,3 +5,4 @@ artifacts/*.dat
 artifacts/**/*.dat
 artifacts/*.npy
 artifacts/**/*.npy
+.env
