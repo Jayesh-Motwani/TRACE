@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import compute
 import json
 from llm import summarize_alert
@@ -8,7 +9,6 @@ import pandas as pd
 import random
 
 CSV_FOLDER = "C:\\Users\\mjaye\\PycharmProjects\\TRACE\\solarmainframe\\ids-intrusion-csv\\versions\\1"   # folder containing your multiple CSVs
-app = FastAPI()
 
 def get_random_row_from_csv():
     import os
@@ -34,7 +34,18 @@ def get_random_row_from_csv():
     random_row = df.sample(1).to_dict(orient="records")[0]
 
     return random_row
+app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class RowIn(BaseModel):
     row: Dict[str, Any]
@@ -212,6 +223,9 @@ def summarize(req: dict):
 
     return summarize_alert(req["llm_payload"], req["model_output"])
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.get("/random-analyze")
 def random_analyze():

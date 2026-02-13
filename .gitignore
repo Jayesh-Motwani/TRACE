@@ -6,3 +6,4 @@ artifacts/**/*.dat
 artifacts/*.npy
 artifacts/**/*.npy
 .env
+venv/
