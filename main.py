@@ -4,8 +4,36 @@ import json
 from llm import summarize_alert
 from pydantic import BaseModel
 from typing import Any, Dict, List
+import pandas as pd
+import random
 
+CSV_FOLDER = "C:\\Users\\mjaye\\PycharmProjects\\TRACE\\solarmainframe\\ids-intrusion-csv\\versions\\1"   # folder containing your multiple CSVs
 app = FastAPI()
+
+def get_random_row_from_csv():
+    import os
+    import glob
+
+    csv_files = glob.glob(os.path.join(CSV_FOLDER, "*.csv"))
+    if not csv_files:
+        raise HTTPException(status_code=400, detail="No CSV files found")
+
+    # Pick random file
+    chosen_file = random.choice(csv_files)
+
+    df = pd.read_csv(chosen_file)
+
+    # Drop label if exists
+    if "Label" in df.columns:
+        df = df.drop(columns=["Label"])
+
+    # Clean
+    df = df.replace([float("inf"), float("-inf")], 0).fillna(0)
+
+    # Pick random row
+    random_row = df.sample(1).to_dict(orient="records")[0]
+
+    return random_row
 
 
 class RowIn(BaseModel):
@@ -66,7 +94,7 @@ class BatchIn(BaseModel):
                 }
                 optionally `input_issues`)."""),
           )
-def analyze_batch(req: RowIn):
+def analyze_batch(req: BatchIn):
     out = compute.predict(req.rows)
     return out
 
@@ -183,3 +211,25 @@ def summarize(req: dict):
         raise HTTPException(status_code=400, detail="Need llm_payload and model_output")
 
     return summarize_alert(req["llm_payload"], req["model_output"])
+
+
+@app.get("/random-analyze")
+def random_analyze():
+    row = get_random_row_from_csv()
+    out = compute.predict([row])
+    result0 = out["results"][0]
+
+    llm_payload = {
+        "is_anomaly": result0["is_anomaly"],
+        "score": result0["score"],
+        "threshold": result0["threshold"],
+        "attack_type": result0["attack_type"],
+        "attack_confidence": result0["attack_confidence"],
+        "top_contributors": result0["top_contributors"],
+        "input_issues": out.get("input_issues", {}),
+    }
+
+    return {
+        "model_output": result0,
+        "llm_payload": llm_payload
+    }
