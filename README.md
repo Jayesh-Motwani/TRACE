@@ -474,12 +474,6 @@ TRACE/
 │       ├── deep_mlp.pt      # Deep MLP expert (PyTorch)
 │       └── gating.pt        # Gating network (PyTorch)
 │
-├── X_raw_final.dat          # Raw feature data (training/evaluation)
-├── y_final.dat              # Labels data
-├── y_correct.dat            # Corrected labels
-├── test_idx.npy             # Test set indices
-├── val_idx.npy              # Validation set indices
-│
 └── solarmainframe/          # (external) CSV dataset directory
     └── ids-intrusion-csv/
         └── versions/1/*.csv # CICIDS-format CSV files
