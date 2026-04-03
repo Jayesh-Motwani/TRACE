@@ -7,3 +7,7 @@ artifacts/*.npy
 artifacts/**/*.npy
 .env
 venv/
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
